@@ -553,8 +553,8 @@ DIFFERENCES FROM std::filesystem::path
 
 *******************************************************************************/
 
-#ifndef NET_PATH_HPP
-#define NET_PATH_HPP
+#ifndef BOOST_CAPY_PATH_HPP
+#define BOOST_CAPY_PATH_HPP
 
 #include <boost/system/result.hpp>
 
@@ -567,7 +567,8 @@ DIFFERENCES FROM std::filesystem::path
 #include <string>
 #include <string_view>
 
-namespace net {
+namespace boost {
+namespace capy {
 
 namespace system = boost::system;
 
@@ -1549,28 +1550,29 @@ hash_value(path_view p) noexcept;
 bool
 platform_equivalent(path_view lhs, path_view rhs) noexcept;
 
-} // namespace net
+} // namespace capy
+} // namespace boost
 
 //------------------------------------------------------------------------------
 
 template<>
-struct std::hash<net::path>
+struct std::hash<boost::capy::path>
 {
     std::size_t
-    operator()(net::path const& p) const noexcept
+    operator()(boost::capy::path const& p) const noexcept
     {
-        return net::hash_value(p);
+        return boost::capy::hash_value(p);
     }
 };
 
 template<>
-struct std::hash<net::path_view>
+struct std::hash<boost::capy::path_view>
 {
     std::size_t
-    operator()(net::path_view p) const noexcept
+    operator()(boost::capy::path_view p) const noexcept
     {
-        return net::hash_value(p);
+        return boost::capy::hash_value(p);
     }
 };
 
-#endif
+#endif // BOOST_CAPY_PATH_HPP
