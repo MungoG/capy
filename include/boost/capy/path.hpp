@@ -663,10 +663,9 @@ public:
     //
     //--------------------------------------------
 
-    /** Return the path as a string_view.
+    /** Implicit conversion to string_view.
     */
-    std::string_view
-    string_view() const noexcept
+    operator std::string_view() const noexcept
     {
         return { data_, size_ };
     }

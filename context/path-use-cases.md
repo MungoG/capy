@@ -58,11 +58,18 @@ std::filesystem::path filepath = impl_->root / utf8_path;
 std::filesystem::path filepath = impl_->root / std::filesystem::path(
     std::u8string(utf8_path.begin(), utf8_path.end()));
 
-// Note: std::filesystem::u8path(utf8_path) would be cleaner, but it was
-// deprecated in C++20 and removed in C++26.
-
-// No validation - malicious paths like "../../../etc/passwd" are accepted
+// No validation - invalid UTF-8 or illegal characters are silently accepted
 ```
+
+**With std::filesystem::path and u8path** (deprecated):
+```cpp
+std::string utf8_path = p.path;  // UTF-8 from HTTP request
+std::filesystem::path filepath = impl_->root / std::filesystem::u8path(utf8_path);
+
+// No validation - invalid UTF-8 or illegal characters are silently accepted
+```
+
+Note: `u8path` was deprecated in C++20 and removed in C++26.
 
 **With capy::path**:
 
@@ -85,8 +92,8 @@ capy::path filepath = impl_->root / *rel;
 ```
 
 The entire `path_cat()` function is eliminated. Separator handling is automatic.
-Invalid or malicious paths (containing `../` traversal, illegal characters, etc.)
-are rejected at the validation point rather than silently accepted.
+Invalid paths (containing illegal characters, malformed UTF-8, etc.) are rejected
+at the validation point rather than silently accepted.
 
 ## 2. Extension Extraction for MIME Type
 
@@ -108,7 +115,8 @@ get_extension(core::string_view path) noexcept
 auto mt = mime_type(get_extension(path));
 ```
 
-**With std::filesystem::path**:
+**With std::filesystem::path**<br>
+**With std::filesystem::path and u8path** (identical in this case):
 ```cpp
 auto ext = filepath.extension();  // Returns std::filesystem::path, allocates
 
@@ -122,7 +130,7 @@ auto mt = mime_type(std::string(u8ext.begin(), u8ext.end()));
 
 **With capy::path**:
 ```cpp
-auto mt = mime_type(filepath.extension().string_view());
+auto mt = mime_type(filepath.extension());
 ```
 
 The `get_extension()` function is eliminated. Edge cases like `.gitignore`
@@ -170,10 +178,29 @@ struct serve_static::impl
 serve_static handler(std::filesystem::path(
     std::u8string(doc_root.begin(), doc_root.end())),
     opts);
-
-// Note: std::filesystem::u8path(doc_root) would be cleaner, but it was
-// deprecated in C++20 and removed in C++26.
 ```
+
+**With std::filesystem::path and u8path** (deprecated):
+```cpp
+struct serve_static::impl
+{
+    impl(
+        std::filesystem::path root_,
+        options const& opt_)
+        : root(std::move(root_))  // No validation
+        , opt(opt_)
+    {
+    }
+
+    std::filesystem::path root;  // Could contain invalid characters
+    options opt;
+};
+
+// Construction from UTF-8:
+serve_static handler(std::filesystem::u8path(doc_root), opts);
+```
+
+Note: `u8path` was deprecated in C++20 and removed in C++26.
 
 **With capy::path**:
 ```cpp
@@ -206,7 +233,8 @@ capy::file f;
 f.open(path.c_str(), capy::file_mode::scan, ec);
 ```
 
-**With std::filesystem::path**:
+**With std::filesystem::path**<br>
+**With std::filesystem::path and u8path** (identical in this case):
 ```cpp
 system::error_code ec;
 capy::file f;
@@ -241,7 +269,8 @@ if(p.parser.get().target().back() == '/')
 }
 ```
 
-**With std::filesystem::path**:
+**With std::filesystem::path**<br>
+**With std::filesystem::path and u8path** (identical in this case):
 ```cpp
 if(p.parser.get().target().back() == '/')
     filepath /= "index.html";  // OK - same syntax
@@ -253,7 +282,7 @@ if(p.parser.get().target().back() == '/')
     filepath /= "index.html";
 ```
 
-This operation is equivalent in both. The difference is in how the path was
+This operation is equivalent in all three. The difference is in how the path was
 constructed and how it will be used.
 
 ## 6. Complete Refactored Handler
@@ -285,10 +314,7 @@ std::string utf8_input = p.path;
 std::filesystem::path rel_path(std::u8string(
     utf8_input.begin(), utf8_input.end()));
 
-// Note: std::filesystem::u8path(utf8_input) would be cleaner, but it was
-// deprecated in C++20 and removed in C++26.
-
-// No validation - "../../../etc/passwd" is accepted
+// No validation - invalid UTF-8 or illegal characters are silently accepted
 
 std::filesystem::path filepath = impl_->root / rel_path;
 if(p.parser.get().target().back() == '/')
@@ -303,6 +329,29 @@ f.open(filepath.c_str(), capy::file_mode::scan, ec);
 auto u8ext = filepath.extension().u8string();
 auto mt = mime_type(std::string(u8ext.begin(), u8ext.end()));
 ```
+
+**With std::filesystem::path and u8path** (deprecated):
+```cpp
+std::string utf8_input = p.path;
+std::filesystem::path rel_path = std::filesystem::u8path(utf8_input);
+
+// No validation - invalid UTF-8 or illegal characters are silently accepted
+
+std::filesystem::path filepath = impl_->root / rel_path;
+if(p.parser.get().target().back() == '/')
+    filepath /= "index.html";
+
+system::error_code ec;
+capy::file f;
+
+f.open(filepath.c_str(), capy::file_mode::scan, ec);
+
+// Get extension as UTF-8 (verbose)
+auto u8ext = filepath.extension().u8string();
+auto mt = mime_type(std::string(u8ext.begin(), u8ext.end()));
+```
+
+Note: `u8path` was deprecated in C++20 and removed in C++26.
 
 **With capy::path**:
 ```cpp
@@ -319,19 +368,19 @@ system::error_code ec;
 capy::file f;
 f.open(filepath, capy::file_mode::scan, ec);
 // ...
-auto mt = mime_type(filepath.extension().string_view());
+auto mt = mime_type(filepath.extension());
 ```
 
 ## Summary
 
-| Aspect | std::filesystem::path | capy::path |
-|--------|----------------------|------------|
-| UTF-8 construction | Iterator conversion to `std::u8string` | Direct from `std::string` |
-| UTF-8 extraction | `u8string()` + iterator conversion | `string()` or `string_view()` |
-| Decomposition | Allocates new `path` objects | Returns views (zero allocation) |
-| Validation | None | At construction |
-| File opening | `c_str()` returns native type | `native_wstring()` internally |
-| Separator handling | Automatic | Automatic |
+| Aspect | std::filesystem::path | std::filesystem::path + u8path | capy::path |
+|--------|----------------------|-------------------------------|------------|
+| UTF-8 construction | Iterator conversion to `std::u8string` | `u8path()` (deprecated) | Direct from `std::string` |
+| UTF-8 extraction | `u8string()` + iterator conversion | `u8string()` + iterator conversion | `string()` or `string_view()` |
+| Decomposition | Allocates new `path` objects | Allocates new `path` objects | Returns views (zero allocation) |
+| Validation | None | None | At construction |
+| File opening | `c_str()` returns native type | `c_str()` returns native type | `native_wstring()` internally |
+| Separator handling | Automatic | Automatic | Automatic |
 
 ### Key Benefits of capy::path
 
