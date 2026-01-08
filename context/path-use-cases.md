@@ -371,6 +371,121 @@ f.open(filepath, capy::file_mode::scan, ec);
 auto mt = mime_type(filepath.extension());
 ```
 
+## 7. The Complete Path Flow: Command Line to File Open
+
+A typical static file server has this flow:
+
+1. **Command line** → User runs: `./server /var/www/html`
+2. **Handler construction** → Server stores the document root
+3. **HTTP request** → Client requests: `GET /images/用户.png`
+4. **Path concatenation** → Combine root + request path
+5. **File open** → Open the resulting path
+
+There are two trust boundaries:
+- `argv` comes from the local user (trusted)
+- HTTP request path comes from the network (untrusted)
+
+**With std::filesystem::path**:
+
+```cpp
+// POSIX version - works correctly
+int main(int argc, char** argv) {
+    std::filesystem::path root(argv[1]);  // UTF-8 on POSIX
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::path(
+        std::u8string(http_path.begin(), http_path.end()));
+}
+
+// Windows version - BROKEN with main()
+int main(int argc, char** argv) {
+    // WRONG: argv[1] is ANSI codepage, not UTF-8
+    std::filesystem::path root(argv[1]);  // Silently corrupts non-ASCII!
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::path(
+        std::u8string(http_path.begin(), http_path.end()));
+}
+
+// Windows version - correct but requires wmain
+int wmain(int argc, wchar_t** argv) {
+    std::filesystem::path root(argv[1]);  // UTF-16, works
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::path(
+        std::u8string(http_path.begin(), http_path.end()));
+}
+```
+
+**This is insidious:** code that works perfectly on Unix silently corrupts
+non-ASCII paths on Windows. Developers testing on Unix never see the bug—it only
+manifests in production on Windows systems with international users.
+
+**With std::filesystem::path and u8path** (deprecated):
+
+```cpp
+// POSIX version - works correctly
+int main(int argc, char** argv) {
+    std::filesystem::path root(argv[1]);  // UTF-8 on POSIX
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::u8path(http_path);
+}
+
+// Windows version - BROKEN with main()
+int main(int argc, char** argv) {
+    // WRONG: argv[1] is ANSI codepage, not UTF-8
+    std::filesystem::path root(argv[1]);  // Silently corrupts non-ASCII!
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::u8path(http_path);
+}
+
+// Windows version - correct but requires wmain
+int wmain(int argc, wchar_t** argv) {
+    std::filesystem::path root(argv[1]);  // UTF-16 from wmain, works
+    std::string http_path = "/images/用户.png";
+    auto filepath = root / std::filesystem::u8path(http_path);
+}
+```
+
+Note: `u8path` was deprecated in C++20 and removed in C++26. It helps with the
+HTTP path (which is known to be UTF-8) but doesn't solve the `argv` problem on
+Windows—you still need `wmain`.
+
+**With capy::path**:
+
+```cpp
+// POSIX version
+int main(int argc, char** argv) {
+    capy::path root(argv[1]);  // UTF-8 on POSIX
+    auto rel = try_parse_path_view("/images/用户.png");
+    if (!rel) return 1;
+    auto filepath = root / *rel;
+}
+
+// Windows version - DETECTED with main()
+int main(int argc, char** argv) {
+    // argv[1] is ANSI codepage, not UTF-8
+    // ANSI-encoded non-ASCII bytes are invalid UTF-8
+    capy::path root(argv[1]);  // THROWS - invalid UTF-8 detected!
+    auto rel = try_parse_path_view("/images/用户.png");
+    if (!rel) return 1;
+    auto filepath = root / *rel;
+}
+
+// Windows version - correct, use wmain
+int wmain(int argc, wchar_t** argv) {
+    capy::path root(argv[1]);  // Converts UTF-16 to UTF-8 internally
+    auto rel = try_parse_path_view("/images/用户.png");
+    if (!rel) return 1;
+    auto filepath = root / *rel;
+}
+```
+
+**Key difference:** With `std::filesystem::path`, ANSI-encoded non-ASCII is
+silently accepted and corrupted. With `capy::path`, ANSI-encoded non-ASCII bytes
+fail UTF-8 validation and throw immediately—the bug is caught at construction
+time rather than silently corrupting data in production.
+
+Once you have the correct entry point (`wmain` on Windows), the path handling
+code is identical across platforms with no encoding conversion dance.
+
 ## Summary
 
 | Aspect | std::filesystem::path | std::filesystem::path + u8path | capy::path |
