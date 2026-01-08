@@ -9,6 +9,10 @@ The `serve_static` handler builds filesystem paths from a document root and HTTP
 request paths. Currently this requires manual separator handling with platform
 ifdefs.
 
+In the examples below, `p` is the pending HTTP request object and `p.path` is
+the request path (e.g., `/images/logo.png`) extracted from the HTTP request line.
+This is always UTF-8 encoded per the HTTP specification.
+
 **Current code** (serve_static.cpp):
 ```cpp
 static void
@@ -126,6 +130,10 @@ auto mt = mime_type(ext.string());
 // Correct but verbose (C++20):
 auto u8ext = ext.u8string();  // Returns std::u8string
 auto mt = mime_type(std::string(u8ext.begin(), u8ext.end()));
+
+// Note: beast2's mime_type() takes core::string_view (char-based).
+// If an overload taking char8_t const* were added, this would simplify to:
+// auto mt = mime_type(u8ext);
 ```
 
 **With capy::path**:
