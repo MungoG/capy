@@ -1519,8 +1519,9 @@ hash_value(path_view p) noexcept;
 
     Performs lexical normalization on both paths (removing redundant
     separators, "." components, and resolving ".." components), then
-    compares the results. On Windows, the comparison is case-insensitive.
-    On POSIX, the comparison is case-sensitive.
+    compares the results. On Windows and macOS, the comparison is
+    case-insensitive. On other POSIX systems, the comparison is
+    case-sensitive.
 
     This is useful for checking if two paths would refer to the same
     filesystem entity on the current platform, without querying
@@ -1529,7 +1530,14 @@ hash_value(path_view p) noexcept;
     Examples:
     - "foo/../bar" and "bar" are equivalent
     - "foo//bar" and "foo/bar" are equivalent
-    - "C:/Foo" and "c:/foo" are equivalent on Windows, not on POSIX
+    - "C:/Foo" and "c:/foo" are equivalent on Windows, not on Linux
+
+    @note On macOS, case sensitivity is per-volume. This function
+    assumes case-insensitive comparison, which matches the default
+    APFS configuration. Paths on case-sensitive volumes may compare
+    as equivalent when they are not. To reliably determine if two
+    paths refer to the same file, query the filesystem (e.g., compare
+    file IDs after opening).
 
     @note This function does not perform Unicode normalization.
     Visually identical paths using different Unicode representations
@@ -1537,8 +1545,6 @@ hash_value(path_view p) noexcept;
     not compare as equivalent. Most filesystems, including NTFS and
     APFS, store filenames as raw code units without normalization,
     so two visually identical filenames can refer to different files.
-    To reliably determine if two paths refer to the same file, query
-    the filesystem (e.g., compare file IDs after opening).
 */
 bool
 platform_equivalent(path_view lhs, path_view rhs) noexcept;
