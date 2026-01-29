@@ -23,6 +23,7 @@ on:
       - feature/**
       - fix/**
       - pr/**
+      - vinnie-ci-fix
 
 
 concurrency:
@@ -297,7 +298,19 @@ jobs:
           rm -r "boost-source/libs/$module" || true
 
           # Copy cached boost-source to an isolated boost-root
-          cp -r boost-source boost-root
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            # Use robocopy with /SL to preserve symlinks on Windows
+            # robocopy exit codes 0-7 are success, 8+ are errors
+            # Use || to capture exit code without triggering set -e
+            rc=0
+            robocopy boost-source boost-root //E //SL //NFL //NDL //NJH //NJS //NC //NS //R:0 || rc=$?
+            if [[ $rc -ge 8 ]]; then
+              echo "robocopy failed with exit code $rc"
+              exit 1
+            fi
+          else
+            cp -r boost-source boost-root
+          fi
 
           # Set boost-root output
           cd boost-root
