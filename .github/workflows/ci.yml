@@ -23,6 +23,7 @@ on:
       - feature/**
       - fix/**
       - pr/**
+      - ci-fixes-2
 
 
 concurrency:
@@ -351,6 +352,7 @@ jobs:
           package: false
           package-artifact: false
           ref-source-dir: capy-root
+          extra-args: -D BOOST_SRC_DIR=${{ steps.patch.outputs.boost_root }}
 
       - name: FlameGraph
         uses: alandefreitas/cpp-actions/flamegraph@v1.9.0
