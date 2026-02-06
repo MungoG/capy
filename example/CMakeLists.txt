@@ -17,7 +17,9 @@ add_subdirectory(parallel-fetch)
 add_subdirectory(custom-dynamic-buffer)
 add_subdirectory(stream-pipeline)
 
-# Corosio example handles its own dependency detection
-add_subdirectory(echo-server-corosio)
+# Requires Corosio dependency
+if(TARGET Boost::corosio)
+    add_subdirectory(echo-server-corosio)
+endif()
 
 add_subdirectory(asio)
