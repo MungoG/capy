@@ -112,7 +112,9 @@ set_property(TARGET capy_example_any_stream
 
 target_link_libraries(capy_example_any_stream
     Boost::capy
-    Boost::asio)
+    Boost::asio
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:mswsock>)
 
 # asio_callbacks example (callback-based with uni_stream)
 add_executable(capy_example_asio_callbacks
@@ -126,4 +128,6 @@ set_property(TARGET capy_example_asio_callbacks
 
 target_link_libraries(capy_example_asio_callbacks
     Boost::capy
-    Boost::asio)
+    Boost::asio
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:mswsock>)

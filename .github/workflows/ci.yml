@@ -300,9 +300,8 @@ jobs:
           # Copy cached boost-source to an isolated boost-root
           cp -rL boost-source boost-root
 
-          # Set boost-root output
-          cd boost-root
-          boost_root="$(pwd)"
+          # Set boost-root output using GITHUB_WORKSPACE (works on all platforms including MinGW)
+          boost_root="$GITHUB_WORKSPACE/boost-root"
           boost_root=$(echo "$boost_root" | sed 's/\\/\//g')
           echo -E "boost_root=$boost_root" >> $GITHUB_OUTPUT
 
