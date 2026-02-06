@@ -317,6 +317,7 @@ jobs:
         with:
           source-dir: boost-root
           modules: capy
+          module-target: test example
           toolset: ${{ matrix.b2-toolset }}
           build-variant: ${{ (matrix.compiler == 'msvc' && 'debug,release') || matrix.build-type }}
           cxx: ${{ steps.setup-cpp.outputs.cxx || matrix.cxx || '' }}
@@ -339,7 +340,6 @@ jobs:
           generator: ${{ matrix.generator }}
           generator-toolset: ${{ matrix.generator-toolset }}
           build-type: ${{ matrix.build-type }}
-          build-target: boost_capy_tests
           run-tests: true
           cxxstd: ${{ matrix.latest-cxxstd }}
           cc:  ${{ steps.setup-cpp.outputs.cc || matrix.cc }}
