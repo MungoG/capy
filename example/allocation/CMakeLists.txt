@@ -12,6 +12,7 @@ FetchContent_Declare(mimalloc
     GIT_REPOSITORY https://github.com/microsoft/mimalloc
     GIT_TAG v2.2.7
     GIT_SHALLOW TRUE)
+set(MI_BUILD_TESTS OFF CACHE BOOL "Disable mimalloc tests" FORCE)
 FetchContent_MakeAvailable(mimalloc)
 
 file(GLOB_RECURSE PFILES CONFIGURE_DEPENDS *.cpp *.hpp
